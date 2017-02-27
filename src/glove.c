@@ -176,7 +176,7 @@ int save_params(int nb_iter) {
     long long a, b;
     char format[20];
     char output_file[MAX_STRING_LENGTH], output_file_gsq[MAX_STRING_LENGTH];
-    char *word = malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
+    char *word = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
     FILE *fid, *fout, *fgs;
 
     if (use_binary > 0) { // Save parameters in binary file
@@ -357,10 +357,10 @@ int find_arg(char *str, int argc, char **argv) {
 int main(int argc, char **argv) {
     int i;
     FILE *fid;
-    vocab_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
-    input_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
-    save_W_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
-    save_gradsq_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
+    vocab_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
+    input_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
+    save_W_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
+    save_gradsq_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
     int result = 0;
 
     if (argc == 1) {
@@ -408,7 +408,7 @@ int main(int argc, char **argv) {
         if ((i = find_arg((char *)"-vector-size", argc, argv)) > 0) vector_size = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-iter", argc, argv)) > 0) num_iter = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-threads", argc, argv)) > 0) num_threads = atoi(argv[i + 1]);
-        cost = malloc(sizeof(real) * num_threads);
+        cost = (real*)malloc(sizeof(real) * num_threads);
         if ((i = find_arg((char *)"-alpha", argc, argv)) > 0) alpha = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-x-max", argc, argv)) > 0) x_max = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-eta", argc, argv)) > 0) eta = atof(argv[i + 1]);

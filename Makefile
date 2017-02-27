@@ -1,6 +1,6 @@
-CC = gcc
+CC = g++
 #For older gcc, use -O3 or -O2 instead of -Ofast
-CFLAGS = -lm -pthread -Ofast -march=native -funroll-loops -Wno-unused-result
+CFLAGS = -std=c++11 -lm -pthread -Ofast -march=native -funroll-loops -Wno-unused-result
 BUILDDIR := build
 SRCDIR := src
 

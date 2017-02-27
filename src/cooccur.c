@@ -180,9 +180,9 @@ void swap_entry(CRECID *pq, int i, int j) {
 }
 
 /* Insert entry into priority queue */
-void insert(CRECID *pq, CRECID new, int size) {
+void insert(CRECID *pq, CRECID _new, int size) {
     int j = size - 1, p;
-    pq[j] = new;
+    pq[j] = _new;
     while ( (p=(j-1)/2) >= 0 ) {
         if (compare_crecid(pq[p],pq[j]) > 0) {swap_entry(pq,p,j); j = p;}
         else break;
@@ -190,7 +190,7 @@ void insert(CRECID *pq, CRECID new, int size) {
 }
 
 /* Delete entry from priority queue */
-void delete(CRECID *pq, int size) {
+void delete_it(CRECID *pq, int size) {
     int j, p = 0;
     pq[p] = pq[size - 1];
     while ( (j = 2*p+1) < size - 1 ) {
@@ -212,13 +212,13 @@ void delete(CRECID *pq, int size) {
 }
 
 /* Write top node of priority queue to file, accumulating duplicate entries */
-int merge_write(CRECID new, CRECID *old, FILE *fout) {
-    if (new.word1 == old->word1 && new.word2 == old->word2) {
-        old->val += new.val;
+int merge_write(CRECID _new, CRECID *old, FILE *fout) {
+    if (_new.word1 == old->word1 && _new.word2 == old->word2) {
+        old->val += _new.val;
         return 0; // Indicates duplicate entry
     }
     fwrite(old, sizeof(CREC), 1, fout);
-    *old = new;
+    *old = _new;
     return 1; // Actually wrote to file
 }
 
@@ -226,11 +226,11 @@ int merge_write(CRECID new, CRECID *old, FILE *fout) {
 int merge_files(int num) {
     int i, size;
     long long counter = 0;
-    CRECID *pq, new, old;
+    CRECID *pq, _new, old;
     char filename[200];
     FILE **fid, *fout;
-    fid = malloc(sizeof(FILE) * num);
-    pq = malloc(sizeof(CRECID) * num);
+    fid = (FILE**)malloc(sizeof(FILE) * num);
+    pq = (CRECID*)malloc(sizeof(CRECID) * num);
     fout = stdout;
     if (verbose > 1) fprintf(stderr, "Merging cooccurrence files: processed 0 lines.");
 
@@ -239,21 +239,21 @@ int merge_files(int num) {
         sprintf(filename,"%s_%04d.bin",file_head,i);
         fid[i] = fopen(filename,"rb");
         if (fid[i] == NULL) {fprintf(stderr, "Unable to open file %s.\n",filename); return 1;}
-        fread(&new, sizeof(CREC), 1, fid[i]);
-        new.id = i;
-        insert(pq,new,i+1);
+        fread(&_new, sizeof(CREC), 1, fid[i]);
+        _new.id = i;
+        insert(pq,_new,i+1);
     }
 
     /* Pop top node, save it in old to see if the next entry is a duplicate */
     size = num;
     old = pq[0];
     i = pq[0].id;
-    delete(pq, size);
-    fread(&new, sizeof(CREC), 1, fid[i]);
+    delete_it(pq, size);
+    fread(&_new, sizeof(CREC), 1, fid[i]);
     if (feof(fid[i])) size--;
     else {
-        new.id = i;
-        insert(pq, new, size);
+        _new.id = i;
+        insert(pq, _new, size);
     }
 
     /* Repeatedly pop top node and fill priority queue until files have reached EOF */
@@ -261,12 +261,12 @@ int merge_files(int num) {
         counter += merge_write(pq[0], &old, fout); // Only count the lines written to file, not duplicates
         if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[39G%lld lines.",counter);
         i = pq[0].id;
-        delete(pq, size);
-        fread(&new, sizeof(CREC), 1, fid[i]);
+        delete_it(pq, size);
+        fread(&_new, sizeof(CREC), 1, fid[i]);
         if (feof(fid[i])) size--;
         else {
-            new.id = i;
-            insert(pq, new, size);
+            _new.id = i;
+            insert(pq, _new, size);
         }
     }
     fwrite(&old, sizeof(CREC), 1, fout);
@@ -287,8 +287,8 @@ int get_cooccurrence() {
     FILE *fid, *foverflow;
     real *bigram_table, r;
     HASHREC *htmp, **vocab_hash = inithashtable();
-    CREC *cr = malloc(sizeof(CREC) * (overflow_length + 1));
-    history = malloc(sizeof(long long) * window_size);
+    CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + 1));
+    history = (long long*)malloc(sizeof(long long) * window_size);
 
     fprintf(stderr, "COUNTING COOCCURRENCES\n");
     if (verbose > 0) {
@@ -424,8 +424,8 @@ int find_arg(char *str, int argc, char **argv) {
 int main(int argc, char **argv) {
     int i;
     real rlimit, n = 1e5;
-    vocab_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
-    file_head = malloc(sizeof(char) * MAX_STRING_LENGTH);
+    vocab_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
+    file_head = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
 
     if (argc == 1) {
         printf("Tool to calculate word-word cooccurrence statistics\n");

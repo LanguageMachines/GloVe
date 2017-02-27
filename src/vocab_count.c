@@ -59,7 +59,7 @@ int CompareVocabTie(const void *a, const void *b) {
     long long c;
     if ( (c = ((VOCAB *) b)->count - ((VOCAB *) a)->count) != 0) return ( c > 0 ? 1 : -1 );
     else return (scmp(((VOCAB *) a)->word,((VOCAB *) b)->word));
-    
+
 }
 
 /* Vocab frequency comparison; no tie-breaker */
@@ -93,7 +93,7 @@ HASHREC ** inithashtable() {
 void hashinsert(HASHREC **ht, char *w) {
     HASHREC	*htmp, *hprv;
     unsigned int hval = HASHFN(w, TSIZE, SEED);
-    
+
     for (hprv = NULL, htmp = ht[hval]; htmp != NULL && scmp(htmp->word, w) != 0; hprv = htmp, htmp = htmp->next);
     if (htmp == NULL) {
         htmp = (HASHREC *) malloc( sizeof(HASHREC) );
@@ -127,7 +127,7 @@ int get_counts() {
     HASHREC *htmp;
     VOCAB *vocab;
     FILE *fid = stdin;
-    
+
     fprintf(stderr, "BUILDING VOCABULARY\n");
     if (verbose > 1) fprintf(stderr, "Processed %lld tokens.", i);
     sprintf(format,"%%%ds",MAX_STRING_LENGTH);
@@ -140,7 +140,7 @@ int get_counts() {
         if (((++i)%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[11G%lld tokens.", i);
     }
     if (verbose > 1) fprintf(stderr, "\033[0GProcessed %lld tokens.\n", i);
-    vocab = malloc(sizeof(VOCAB) * vocab_size);
+    vocab = (VOCAB*)malloc(sizeof(VOCAB) * vocab_size);
     for (i = 0; i < TSIZE; i++) { // Migrate vocab to array
         htmp = vocab_hash[i];
         while (htmp != NULL) {
@@ -161,7 +161,7 @@ int get_counts() {
         qsort(vocab, j, sizeof(VOCAB), CompareVocab);
     else max_vocab = j;
     qsort(vocab, max_vocab, sizeof(VOCAB), CompareVocabTie); //After (possibly) truncating, sort (possibly again), breaking ties alphabetically
-    
+
     for (i = 0; i < max_vocab; i++) {
         if (vocab[i].count < min_count) { // If a minimum frequency cutoff exists, truncate vocabulary
             if (verbose > 0) fprintf(stderr, "Truncating vocabulary at min count %lld.\n",min_count);
@@ -169,7 +169,7 @@ int get_counts() {
         }
         printf("%s %lld\n",vocab[i].word,vocab[i].count);
     }
-    
+
     if (i == max_vocab && max_vocab < j) if (verbose > 0) fprintf(stderr, "Truncating vocabulary at size %lld.\n", max_vocab);
     fprintf(stderr, "Using vocabulary of size %lld.\n\n", i);
     return 0;
@@ -205,10 +205,9 @@ int main(int argc, char **argv) {
         printf("./vocab_count -verbose 2 -max-vocab 100000 -min-count 10 < corpus.txt > vocab.txt\n");
         return 0;
     }
-    
+
     if ((i = find_arg((char *)"-verbose", argc, argv)) > 0) verbose = atoi(argv[i + 1]);
     if ((i = find_arg((char *)"-max-vocab", argc, argv)) > 0) max_vocab = atoll(argv[i + 1]);
     if ((i = find_arg((char *)"-min-count", argc, argv)) > 0) min_count = atoll(argv[i + 1]);
     return get_counts();
 }
-

@@ -85,8 +85,8 @@ int shuffle_merge(int num) {
     char filename[MAX_STRING_LENGTH];
     FILE **fid, *fout = stdout;
 
-    array = malloc(sizeof(CREC) * array_size);
-    fid = malloc(sizeof(FILE) * num);
+    array = (CREC*)malloc(sizeof(CREC) * array_size);
+    fid = (FILE**)malloc(sizeof(FILE) * num);
     for (fidcounter = 0; fidcounter < num; fidcounter++) { //num = number of temporary files to merge
         sprintf(filename,"%s_%04d.bin",file_head, fidcounter);
         fid[fidcounter] = fopen(filename, "rb");
@@ -132,7 +132,7 @@ int shuffle_by_chunks() {
     char filename[MAX_STRING_LENGTH];
     CREC *array;
     FILE *fin = stdin, *fid;
-    array = malloc(sizeof(CREC) * array_size);
+    array = (CREC*)malloc(sizeof(CREC) * array_size);
 
     fprintf(stderr,"SHUFFLING COOCCURRENCES\n");
     if (verbose > 0) fprintf(stderr,"array size: %lld\n", array_size);
@@ -190,7 +190,7 @@ int find_arg(char *str, int argc, char **argv) {
 
 int main(int argc, char **argv) {
     int i;
-    file_head = malloc(sizeof(char) * MAX_STRING_LENGTH);
+    file_head = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
 
     if (argc == 1) {
         printf("Tool to shuffle entries of word-word cooccurrence files\n");
