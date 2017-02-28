@@ -25,26 +25,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "common.h"
 
 #define TSIZE 1048576
 #define SEED 1159241
 #define HASHFN bitwisehash
-
-static const int MAX_STRING_LENGTH = 1000;
-typedef long double real;
-
-typedef struct cooccur_rec {
-    long int word1;
-    long int word2;
-    real val;
-} CREC;
-
-typedef struct cooccur_rec_id {
-    long int word1;
-    long int word2;
-    real val;
-    long int id;
-} CRECID;
 
 typedef struct hashrec {
     char	*word;

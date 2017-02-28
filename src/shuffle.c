@@ -24,17 +24,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#define MAX_STRING_LENGTH 1000
+#include "common.h"
 
 static const long LRAND_MAX = ((long) RAND_MAX + 2) * (long)RAND_MAX;
-typedef long double real;
-
-typedef struct cooccur_rec {
-  long int word1;
-  int word2;
-  real val;
-} CREC;
 
 int verbose = 2; // 0, 1, or 2
 long long array_size = 2000000; // size of chunks to shuffle individually

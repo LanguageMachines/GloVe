@@ -29,17 +29,9 @@
 #include <math.h>
 #include <pthread.h>
 #include <time.h>
+#include "common.h"
 
 #define _FILE_OFFSET_BITS 64
-#define MAX_STRING_LENGTH 1000
-
-typedef long double real;
-
-typedef struct cooccur_rec {
-    long int word1;
-    long int word2;
-    real val;
-} CREC;
 
 int verbose = 2; // 0, 1, or 2
 int use_unk_vec = 1; // 0 or 1
