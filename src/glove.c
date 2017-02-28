@@ -48,12 +48,6 @@ real *W, *gradsq, *cost;
 long long num_lines, *lines_per_thread, vocab_size;
 char *vocab_file, *input_file, *save_W_file, *save_gradsq_file;
 
-/* Efficient string comparison */
-int scmp( char *s1, char *s2 ) {
-    while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
-    return(*s1 - *s2);
-}
-
 void initialize_parameters() {
 	long long a, b;
 	vector_size++; // Temporarily increment to allocate space for bias

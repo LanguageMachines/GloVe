@@ -25,33 +25,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MAX_STRING_LENGTH 1000
-#define TSIZE	1048576
-#define SEED	1159241
-#define HASHFN  bitwisehash
+#include "common.h"
 
 typedef struct vocabulary {
     char *word;
     long long count;
 } VOCAB;
 
-typedef struct hashrec {
-    char *word;
-    long long count;
-    struct hashrec *next;
-} HASHREC;
-
 int verbose = 2; // 0, 1, or 2
 long long min_count = 1; // min occurrences for inclusion in vocab
 long long max_vocab = 0; // max_vocab = 0 for no limit
 
-
-/* Efficient string comparison */
-int scmp( char *s1, char *s2 ) {
-    while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
-    return(*s1 - *s2);
-}
 
 
 /* Vocab frequency comparison; break ties alphabetically */
@@ -99,7 +83,7 @@ void hashinsert(HASHREC **ht, char *w) {
         htmp = (HASHREC *) malloc( sizeof(HASHREC) );
         htmp->word = (char *) malloc( strlen(w) + 1 );
         strcpy(htmp->word, w);
-        htmp->count = 1;
+        htmp->id = 1;
         htmp->next = NULL;
         if ( hprv==NULL )
             ht[hval] = htmp;
@@ -108,7 +92,7 @@ void hashinsert(HASHREC **ht, char *w) {
     }
     else {
         /* new records are not moved to front */
-        htmp->count++;
+        htmp->id++;
         if (hprv != NULL) {
             /* move to front on access */
             hprv->next = htmp->next;
@@ -145,7 +129,7 @@ int get_counts() {
         htmp = vocab_hash[i];
         while (htmp != NULL) {
             vocab[j].word = htmp->word;
-            vocab[j].count = htmp->count;
+            vocab[j].count = htmp->id;
             j++;
             if (j>=vocab_size) {
                 vocab_size += 2500;

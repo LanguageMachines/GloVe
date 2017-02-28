@@ -33,13 +33,6 @@ long long array_size = 2000000; // size of chunks to shuffle individually
 char *file_head; // temporary file string
 real memory_limit = 2.0; // soft limit, in gigabytes
 
-/* Efficient string comparison */
-int scmp( char *s1, char *s2 ) {
-    while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
-    return(*s1 - *s2);
-}
-
-
 /* Generate uniformly distributed random long ints */
 static long rand_long(long n) {
     long limit = LRAND_MAX - LRAND_MAX % n;

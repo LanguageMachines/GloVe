@@ -27,16 +27,6 @@
 #include <math.h>
 #include "common.h"
 
-#define TSIZE 1048576
-#define SEED 1159241
-#define HASHFN bitwisehash
-
-typedef struct hashrec {
-    char	*word;
-    long long id;
-    struct hashrec *next;
-} HASHREC;
-
 int verbose = 2; // 0, 1, or 2
 long long max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
 long long overflow_length; // Number of cooccurrence records whose product exceeds max_product to store in memory before writing to disk
@@ -44,12 +34,6 @@ int window_size = 15; // default context window size
 int symmetric = 1; // 0: asymmetric, 1: symmetric
 real memory_limit = 3; // soft limit, in gigabytes, used to estimate optimal array sizes
 char *vocab_file, *file_head;
-
-/* Efficient string comparison */
-int scmp( char *s1, char *s2 ) {
-    while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
-    return(*s1 - *s2);
-}
 
 /* Move-to-front hashing and hash function from Hugh Williams, http://www.seg.rmit.edu.au/code/zwh-ipl/ */
 
