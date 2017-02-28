@@ -31,9 +31,9 @@ static const long LRAND_MAX = ((long) RAND_MAX + 2) * (long)RAND_MAX;
 typedef long double real;
 
 typedef struct cooccur_rec {
-    int word1;
-    int word2;
-    real val;
+  long int word1;
+  int word2;
+  real val;
 } CREC;
 
 int verbose = 2; // 0, 1, or 2

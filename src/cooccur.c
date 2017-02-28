@@ -34,16 +34,16 @@ static const int MAX_STRING_LENGTH = 1000;
 typedef long double real;
 
 typedef struct cooccur_rec {
-    int word1;
-    int word2;
+    long int word1;
+    long int word2;
     real val;
 } CREC;
 
 typedef struct cooccur_rec_id {
-    int word1;
-    int word2;
+    long int word1;
+    long int word2;
     real val;
-    int id;
+    long int id;
 } CRECID;
 
 typedef struct hashrec {
