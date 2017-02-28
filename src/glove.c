@@ -106,6 +106,7 @@ void *glove_thread(void *vid) {
     real* W_updates2 = (real*)malloc(vector_size * sizeof(real));
     for (a = 0; a < lines_per_thread[id]; a++) {
         fread(&cr, sizeof(CREC), 1, fin);
+	//	fprintf( stderr, "read a CREC: %ld %ld (%Lf)\n", cr.word1, cr.word2, cr.val );
         if (feof(fin)) break;
         if (cr.word1 < 1 || cr.word2 < 1) { continue; }
 

@@ -167,7 +167,7 @@ int compare_crec(const void *a, const void *b) {
 
 /* Check if two cooccurrence records are for the same two words */
 int compare_crecid(CRECID a, CRECID b) {
-    int c;
+    long int c;
     if ( (c = a.word1 - b.word1) != 0) return c;
     else return a.word2 - b.word2;
 }
@@ -281,7 +281,8 @@ int merge_files(int num) {
 
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
-    int flag, x, y, fidcounter = 1;
+    int flag, fidcounter = 1;
+    long int x, y;
     long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
     char format[20], filename[200], str[MAX_STRING_LENGTH + 1];
     FILE *fid, *foverflow;
@@ -390,8 +391,8 @@ int get_cooccurrence() {
         if ( (long long) (0.75*log(vocab_size / x)) < j) {j = (long long) (0.75*log(vocab_size / x)); if (verbose > 1) fprintf(stderr,".");} // log's to make it look (sort of) pretty
         for (y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
             if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
-                fwrite(&x, sizeof(int), 1, fid);
-                fwrite(&y, sizeof(int), 1, fid);
+                fwrite(&x, sizeof(long int), 1, fid);
+                fwrite(&y, sizeof(long int), 1, fid);
                 fwrite(&r, sizeof(real), 1, fid);
             }
         }
