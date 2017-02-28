@@ -46,7 +46,10 @@ real eta = 0.05; // Initial learning rate
 real alpha = 0.75, x_max = 100.0; // Weighting function parameters, not extremely sensitive to corpus, though may need adjustment for very small or very large corpora
 real *W, *gradsq, *cost;
 long long num_lines, *lines_per_thread, vocab_size;
-char *vocab_file, *input_file, *save_W_file, *save_gradsq_file;
+char vocab_file[FILENAME_MAX];
+char input_file[FILENAME_MAX];
+char save_W_file[FILENAME_MAX];
+char save_gradsq_file[FILENAME_MAX];
 
 void initialize_parameters() {
 	long long a, b;
@@ -237,7 +240,7 @@ int save_params(int nb_iter) {
         if (use_unk_vec) {
             real* unk_vec = (real*)calloc((vector_size + 1), sizeof(real));
             real* unk_context = (real*)calloc((vector_size + 1), sizeof(real));
-            word = "<unk>";
+            const char *u_word = "<unk>";
 
             int num_rare_words = vocab_size < 100 ? vocab_size : 100;
 
@@ -248,7 +251,7 @@ int save_params(int nb_iter) {
                 }
             }
 
-            fprintf(fout, "%s",word);
+            fprintf(fout, "%s",u_word);
             if (model == 0) { // Save all parameters (including bias)
                 for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", unk_vec[b]);
                 for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", unk_context[b]);
@@ -348,10 +351,6 @@ int find_arg(char *str, int argc, char **argv) {
 int main(int argc, char **argv) {
     int i;
     FILE *fid;
-    vocab_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
-    input_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
-    save_W_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
-    save_gradsq_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
     int result = 0;
 
     if (argc == 1) {
@@ -429,9 +428,5 @@ int main(int argc, char **argv) {
         result = train_glove();
         free(cost);
     }
-    free(vocab_file);
-    free(input_file);
-    free(save_W_file);
-    free(save_gradsq_file);
     return result;
 }
