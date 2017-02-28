@@ -107,9 +107,13 @@ void *glove_thread(void *vid) {
         fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
         // Check for NaN and inf() in the diffs.
-        if (isnan(diff) || isnan(fdiff) || isinf(diff) || isinf(fdiff)) {
-            fprintf(stderr,"Caught NaN in diff for kdiff for thread. Skipping update");
-            continue;
+        if ( isnan(diff) || isnan(fdiff) ) {
+	  fprintf(stderr,"Caught NaN in diff or fdiff for thread. Skipping update\n");
+	  continue;
+        }
+        if ( isinf(diff) || isinf(fdiff)) {
+	  fprintf(stderr,"Caught Inf in diff or fdiff for thread. Skipping update\n");
+	  continue;
         }
 
         cost[id] += 0.5 * fdiff * diff; // weighted squared error
