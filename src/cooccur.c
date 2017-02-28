@@ -353,7 +353,9 @@ int get_cooccurrence() {
     sprintf(filename,"%s_0000.bin",file_head);
 
     /* Write out full bigram_table, skipping zeros */
-    if (verbose > 1) fprintf(stderr, "Writing cooccurrences to disk");
+    if (verbose > 1) {
+      fprintf(stderr, "Writing cooccurrences to disk: (%s)", filename );
+    }
     fid = fopen(filename,"w");
     j = 1e6;
     for (x = 1; x <= vocab_size; x++) {
