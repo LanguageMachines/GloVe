@@ -82,7 +82,7 @@ int shuffle_merge(int num) {
     long i, j, k, l = 0;
     int fidcounter = 0;
     CREC *array;
-    char filename[MAX_STRING_LENGTH];
+    char filename[FILENAME_MAX];
     FILE **fid, *fout = stdout;
 
     array = (CREC*)malloc(sizeof(CREC) * array_size);
@@ -129,7 +129,7 @@ int shuffle_merge(int num) {
 int shuffle_by_chunks() {
     long i = 0, l = 0;
     int fidcounter = 0;
-    char filename[MAX_STRING_LENGTH];
+    char filename[FILENAME_MAX];
     CREC *array;
     FILE *fin = stdin, *fid;
     array = (CREC*)malloc(sizeof(CREC) * array_size);

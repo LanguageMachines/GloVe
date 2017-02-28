@@ -176,7 +176,7 @@ int save_params(int nb_iter) {
 
     long long a, b;
     char format[20];
-    char output_file[MAX_STRING_LENGTH], output_file_gsq[MAX_STRING_LENGTH];
+    char output_file[FILENAME_MAX], output_file_gsq[FILENAME_MAX];
     char *word = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
     FILE *fid, *fout, *fgs;
 
