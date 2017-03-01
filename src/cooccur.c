@@ -251,13 +251,14 @@ int merge_files(int num) {
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
     int flag, fidcounter = 1;
-    long int x, y;
     long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
     char format[20], filename[FILENAME_MAX], str[MAX_STRING_LENGTH + 1];
-    FILE *fid, *foverflow;
+    FILE *fid = 0, *foverflow;
     real *bigram_table, r;
     HASHREC *htmp, **vocab_hash = inithashtable();
-    CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + 1));
+    CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + window_size+1));
+    fprintf( stderr, "allocated %Ld bytes for cr\n",
+	     sizeof(CREC) * (overflow_length + window_size+1) );
     history = (long long*)malloc(sizeof(long long) * window_size);
 
     fprintf(stderr, "COUNTING COOCCURRENCES\n");
@@ -286,8 +287,8 @@ int get_cooccurrence() {
     }
     lookup[0] = 1;
     for (a = 1; a <= vocab_size; a++) {
-        if ((lookup[a] = max_product / a) < vocab_size) lookup[a] += lookup[a-1];
-        else lookup[a] = lookup[a-1] + vocab_size;
+      if ((lookup[a] = max_product / a) < vocab_size) lookup[a] += lookup[a-1];
+      else lookup[a] = lookup[a-1] + vocab_size;
     }
     if (verbose > 1) fprintf(stderr, "table contains %lld elements.\n",lookup[a-1]);
 
@@ -306,44 +307,44 @@ int get_cooccurrence() {
 
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
     while (1) {
-        if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
-            qsort(cr, ind, sizeof(CREC), compare_crec);
-            write_chunk(cr,ind,foverflow);
-            fclose(foverflow);
-            fidcounter++;
-            sprintf(filename,"%s_%04d.bin",file_head,fidcounter);
-            foverflow = fopen(filename,"w");
-            ind = 0;
-        }
-        flag = get_word(str, fid);
-        if (feof(fid)) break;
-        if (flag == 1) {j = 0; continue;} // Newline, reset line index (j)
-        counter++;
-        if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
-        htmp = hashsearch(vocab_hash, str);
-        if (htmp == NULL) continue; // Skip out-of-vocabulary words
-        w2 = htmp->id; // Target word (frequency rank)
-        for (k = j - 1; k >= ( (j > window_size) ? j - window_size : 0 ); k--) { // Iterate over all words to the left of target word, but not past beginning of line
-            w1 = history[k % window_size]; // Context word (frequency rank)
-            if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
-                bigram_table[lookup[w1-1] + w2 - 2] += 1.0/((real)(j-k)); // Weight by inverse of distance between words
-                if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0/((real)(j-k)); // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
-            }
-            else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
-                cr[ind].word1 = w1;
-                cr[ind].word2 = w2;
-                cr[ind].val = 1.0/((real)(j-k));
-                ind++; // Keep track of how full temporary buffer is
-                if (symmetric > 0) { // Symmetric context
-                    cr[ind].word1 = w2;
-                    cr[ind].word2 = w1;
-                    cr[ind].val = 1.0/((real)(j-k));
-                    ind++;
-                }
-            }
-        }
-        history[j % window_size] = w2; // Target word is stored in circular buffer to become context word in the future
-        j++;
+      if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
+	qsort(cr, ind, sizeof(CREC), compare_crec);
+	write_chunk(cr,ind,foverflow);
+	fclose(foverflow);
+	fidcounter++;
+	sprintf(filename,"%s_%04d.bin",file_head,fidcounter);
+	foverflow = fopen(filename,"w");
+	ind = 0;
+      }
+      flag = get_word(str, fid);
+      if (feof(fid)) break;
+      if (flag == 1) {j = 0; continue;} // Newline, reset line index (j)
+      counter++;
+      if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
+      htmp = hashsearch(vocab_hash, str);
+      if (htmp == NULL) continue; // Skip out-of-vocabulary words
+      w2 = htmp->id; // Target word (frequency rank)
+      for (k = j - 1; k >= ( (j > window_size) ? j - window_size : 0 ); k--) { // Iterate over all words to the left of target word, but not past beginning of line
+	w1 = history[k % window_size]; // Context word (frequency rank)
+	if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
+	  bigram_table[lookup[w1-1] + w2 - 2] += 1.0/((real)(j-k)); // Weight by inverse of distance between words
+	  if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0/((real)(j-k)); // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
+	}
+	else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
+	  cr[ind].word1 = w1;
+	  cr[ind].word2 = w2;
+	  cr[ind].val = 1.0/((real)(j-k));
+	  ind++; // Keep track of how full temporary buffer is
+	  if (symmetric > 0) { // Symmetric context
+	    cr[ind].word1 = w2;
+	    cr[ind].word2 = w1;
+	    cr[ind].val = 1.0/((real)(j-k));
+	    ind++;
+	  }
+	}
+      }
+      history[j % window_size] = w2; // Target word is stored in circular buffer to become context word in the future
+      j++;
     }
 
     /* Write out temp buffer for the final time (it may not be full) */
@@ -358,19 +359,23 @@ int get_cooccurrence() {
     }
     fid = fopen(filename,"w");
     j = 1e6;
-    for (x = 1; x <= vocab_size; x++) {
-        if ( (long long) (0.75*log(vocab_size / x)) < j) {j = (long long) (0.75*log(vocab_size / x)); if (verbose > 1) fprintf(stderr,".");} // log's to make it look (sort of) pretty
-        for (y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
-            if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
-                fwrite(&x, sizeof(long int), 1, fid);
-                fwrite(&y, sizeof(long int), 1, fid);
-                fwrite(&r, sizeof(real), 1, fid);
-            }
-        }
+    for ( long int x = 1; x <= vocab_size; x++) {
+      if (verbose > 1){
+	if ( (long long) (0.75*log(vocab_size / x)) < j) {
+	  j = (long long) (0.75*log(vocab_size / x));
+	  fprintf(stderr,".");
+	} // log's to make it look (sort of) pretty
+      }
+      for ( long int y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
+	if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
+	  fwrite(&x, sizeof(x), 1, fid);
+	  fwrite(&y, sizeof(y), 1, fid);
+	  fwrite(&r, sizeof(r), 1, fid);
+	}
+      }
     }
-
-    if (verbose > 1) fprintf(stderr,"%d files in total.\n",fidcounter + 1);
     fclose(fid);
+    if (verbose > 1) fprintf(stderr,"%d files in total.\n",fidcounter + 1);
     fclose(foverflow);
     free(cr);
     free(lookup);
