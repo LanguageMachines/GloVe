@@ -51,33 +51,36 @@ char input_file[FILENAME_MAX];
 char save_W_file[FILENAME_MAX];
 char save_gradsq_file[FILENAME_MAX];
 
-void initialize_parameters() {
-	long long a, b;
-	vector_size++; // Temporarily increment to allocate space for bias
+long long W_SIZE = 0;
 
-	/* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-	a = posix_memalign((void **)&W, 128, 2 * vocab_size * (vector_size + 1) * sizeof(real)); // Might perform better than malloc
-    if (W == NULL) {
-        fprintf(stderr, "Error allocating memory for W\n");
-        exit(1);
-    }
-    a = posix_memalign((void **)&gradsq, 128, 2 * vocab_size * (vector_size + 1) * sizeof(real)); // Might perform better than malloc
-	if (gradsq == NULL) {
-        fprintf(stderr, "Error allocating memory for gradsq\n");
-        exit(1);
-    }
-	for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
-	for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
-	vector_size--;
+void initialize_parameters() {
+  long long a, b;
+  vector_size++; // Temporarily increment to allocate space for bias
+
+  /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
+  W_SIZE = 500 * vocab_size * (vector_size + 1);
+  a = posix_memalign((void **)&W, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
+  if (W == NULL) {
+    fprintf(stderr, "Error allocating memory for W\n");
+    exit(1);
+  }
+  a = posix_memalign((void **)&gradsq, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
+  if (gradsq == NULL) {
+    fprintf(stderr, "Error allocating memory for gradsq\n");
+    exit(1);
+  }
+  for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+  for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
+  vector_size--;
 }
 
 inline real check_nan(real update) {
-    if (isnan(update) || isinf(update)) {
-        fprintf(stderr,"\ncaught NaN in update");
-        return 0.;
-    } else {
-        return update;
-    }
+  if (isnan(update) || isinf(update)) {
+    fprintf(stderr,"\ncaught NaN in update");
+    return 0.;
+  } else {
+    return update;
+  }
 }
 
 /* Train the GloVe model */
@@ -181,7 +184,7 @@ int save_params(int nb_iter) {
 
         fout = fopen(output_file,"wb");
         if (fout == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_W_file); return 1;}
-        for (a = 0; a < 2 * (long long)vocab_size * (vector_size + 1); a++) fwrite(&W[a], sizeof(real), 1,fout);
+        for (a = 0; a < W_SIZE; a++) fwrite(&W[a], sizeof(real), 1,fout);
         fclose(fout);
         if (save_gradsq > 0) {
             if (nb_iter <= 0)
@@ -191,7 +194,7 @@ int save_params(int nb_iter) {
 
             fgs = fopen(output_file_gsq,"wb");
             if (fgs == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_gradsq_file); return 1;}
-            for (a = 0; a < 2 * (long long)vocab_size * (vector_size + 1); a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
+            for (a = 0; a < W_SIZE; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
             fclose(fgs);
         }
     }
