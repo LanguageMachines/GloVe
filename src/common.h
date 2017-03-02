@@ -23,13 +23,13 @@ typedef struct cooccur_rec_id {
 } CRECID;
 
 typedef struct hashrec {
-    char	*word;
+    char *word;
     long long id;
     struct hashrec *next;
 } HASHREC;
 
 /* Efficient string comparison */
-inline int scmp( char *s1, char *s2 ) {
+inline int scmp( const char *s1, const char *s2 ) {
   while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
   return(*s1 - *s2);
 }
