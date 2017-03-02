@@ -448,23 +448,12 @@ int get_cooccurrence() {
 	fprintf(stderr,".");
       } // log's to make it look (sort of) pretty
     }
-    fid = fopen(filename,"w");
-    j = 1e6;
-    long int x;
-    for ( x = 1; x <= vocab_size; x++) {
-      if (verbose > 1){
-	if ( (long long) (0.75*log(vocab_size / x)) < j) {
-	  j = (long long) (0.75*log(vocab_size / x));
-	  fprintf(stderr,".");
-	} // log's to make it look (sort of) pretty
-      }
-      long int y;
-      for ( y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
-	if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
-	  fwrite(&x, sizeof(x), 1, fid);
-	  fwrite(&y, sizeof(y), 1, fid);
-	  fwrite(&r, sizeof(r), 1, fid);
-	}
+    long int y;
+    for ( y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
+      if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
+	fwrite(&x, sizeof(x), 1, fid);
+	fwrite(&y, sizeof(y), 1, fid);
+	fwrite(&r, sizeof(r), 1, fid);
       }
     }
   }
