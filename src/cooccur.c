@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+//#include <assert.h>
 #include "common.h"
 
 int verbose = 2; // 0, 1, or 2
@@ -305,7 +306,7 @@ int get_cooccurrence() {
   real *bigram_table, r;
   HASHREC *htmp, **vocab_hash = inithashtable();
   CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + window_size+1));
-  fprintf( stderr, "allocated %Ld bytes for cr\n",
+  fprintf( stderr, "allocated %lld bytes for cr\n",
 	   sizeof(CREC) * (overflow_length + window_size+1) );
   history = (long long*)malloc(sizeof(long long) * window_size);
 
@@ -410,7 +411,9 @@ int get_cooccurrence() {
 	}
       }
       else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
+	//	assert( w1 < vocab_size );
 	cr[ind].word1 = w1;
+	//	assert( w2 < vocab_size );
 	cr[ind].word2 = w2;
 	cr[ind].val = 1.0/((real)(j-k));
 	ind++; // Keep track of how full temporary buffer is
@@ -469,7 +472,7 @@ int get_cooccurrence() {
   return merge_files(fidcounter + 1); // Merge the sorted temporary files
 }
 
-int find_arg(char *str, int argc, char **argv) {
+int find_arg( const char *str, int argc, char **argv) {
     int i;
     for (i = 1; i < argc; i++) {
         if (!scmp(str, argv[i])) {

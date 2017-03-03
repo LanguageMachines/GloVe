@@ -31,7 +31,7 @@
 #include <time.h>
 #include "common.h"
 
-#define _FILE_OFFSET_BITS 64
+#define _FILE_OFFSET_BITS 64 // make ftello and fseeko use 64 bit pointers
 
 int verbose = 2; // 0, 1, or 2
 int use_unk_vec = 1; // 0 or 1
@@ -58,7 +58,7 @@ void initialize_parameters() {
   vector_size++; // Temporarily increment to allocate space for bias
 
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  W_SIZE = 500 * vocab_size * (vector_size + 1);
+  W_SIZE = 8 * vocab_size * (vector_size + 1);
   a = posix_memalign((void **)&W, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
@@ -89,9 +89,9 @@ void *glove_thread(void *vid) {
   long long id = *(long long*)vid;
   CREC cr;
   real diff, fdiff, temp1, temp2;
-  FILE *fin;
-  fin = fopen(input_file, "rb");
-  fseeko(fin, (num_lines / num_threads * id) * (sizeof(CREC)), SEEK_SET); //Threads spaced roughly equally throughout file
+  FILE *fin = fopen(input_file, "rb");
+  off_t fpos = (num_lines / num_threads * id) * sizeof(CREC);
+  fseeko(fin, fpos, SEEK_SET); //Threads spaced roughly equally throughout file
   cost[id] = 0;
 
   real* W_updates1 = (real*)malloc(vector_size * sizeof(real));
@@ -108,11 +108,15 @@ void *glove_thread(void *vid) {
 
     /* Get location of words in W & gradsq */
     l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
+    assert( (l1 + vector_size) < W_SIZE );
     l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size + 1); // shift by vocab_size to get separate vectors for context words
+    assert( (l2 + vector_size) < W_SIZE );
 
     /* Calculate cost, save diff for gradients */
     diff = 0;
-    for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
+    for (b = 0; b < vector_size; b++) {
+      diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
+    }
     diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
     fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
@@ -255,22 +259,22 @@ int save_params(int nb_iter) {
       }
       fprintf(fout, "%s",word);
       if (model == 0) { // Save all parameters (including bias)
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", W[a * (vector_size + 1) + b]);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", W[(vocab_size + a) * (vector_size + 1) + b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[(vocab_size + a) * (vector_size + 1) + b]);
       }
       if (model == 1) {
 	// Save only "word" vectors (without bias)
-	for (b = 0; b < vector_size; b++) fprintf(fout," %Lf", W[a * (vector_size + 1) + b]);
+	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
       }
       else if (model == 2) {
 	// Save "word + context word" vectors (without bias)
-	for (b = 0; b < vector_size; b++) fprintf(fout," %Lf", W[a * (vector_size + 1) + b] + W[(vocab_size + a) * (vector_size + 1) + b]);
+	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b] + W[(vocab_size + a) * (vector_size + 1) + b]);
       }
       fprintf(fout,"\n");
       if (save_gradsq > 0) { // Save gradsq
 	fprintf(fgs, "%s",word);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %Lf", gradsq[a * (vector_size + 1) + b]);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %Lf", gradsq[(vocab_size + a) * (vector_size + 1) + b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %lf", gradsq[(vocab_size + a) * (vector_size + 1) + b]);
 	fprintf(fgs,"\n");
       }
       if (fscanf(fid,format,word) == 0) {
@@ -294,16 +298,16 @@ int save_params(int nb_iter) {
 
       fprintf(fout, "%s",u_word);
       if (model == 0) { // Save all parameters (including bias)
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", unk_vec[b]);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %Lf", unk_context[b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_vec[b]);
+	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_context[b]);
       }
       if (model == 1) {
 	// Save only "word" vectors (without bias)
-	for (b = 0; b < vector_size; b++) fprintf(fout," %Lf", unk_vec[b]);
+	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
       }
       else if (model == 2){
 	// Save "word + context word" vectors (without bias)
-	for (b = 0; b < vector_size; b++) fprintf(fout," %Lf", unk_vec[b] + unk_context[b]);
+	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b] + unk_context[b]);
       }
       fprintf(fout,"\n");
 
@@ -322,7 +326,8 @@ int save_params(int nb_iter) {
 
 /* Train model */
 int train_glove() {
-  long long a, file_size;
+  long long a;
+  off_t file_size;
   int save_params_return_code;
   int b;
   FILE *fin;
@@ -350,8 +355,8 @@ int train_glove() {
   if (verbose > 0) {
     fprintf(stderr,"vector size: %d\n", vector_size);
     fprintf(stderr,"vocab size: %lld\n", vocab_size);
-    fprintf(stderr,"x_max: %Lf\n", x_max);
-    fprintf(stderr,"alpha: %Lf\n", alpha);
+    fprintf(stderr,"x_max: %lf\n", x_max);
+    fprintf(stderr,"alpha: %lf\n", alpha);
   }
   pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
   lines_per_thread = (long long *) malloc(num_threads * sizeof(long long));
@@ -374,7 +379,7 @@ int train_glove() {
     time(&rawtime);
     info = localtime(&rawtime);
     strftime(time_buffer,80,"%x - %I:%M.%S%p", info);
-    fprintf(stderr, "%s, iter: %03d, cost: %Lf\n", time_buffer,  b+1, total_cost/num_lines);
+    fprintf(stderr, "%s, iter: %03d, cost: %lf\n", time_buffer,  b+1, total_cost/num_lines);
 
     if (checkpoint_every > 0 && (b + 1) % checkpoint_every == 0) {
       fprintf(stderr,"    saving itermediate parameters for iter %03d...", b+1);
@@ -391,7 +396,7 @@ int train_glove() {
   return save_params(0);
 }
 
-int find_arg(char *str, int argc, char **argv) {
+int find_arg( const char *str, int argc, char **argv) {
   int i;
   for (i = 1; i < argc; i++) {
     if (!scmp(str, argv[i])) {
