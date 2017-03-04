@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 #include <pthread.h>
 #include <time.h>
 #include "common.h"
@@ -52,13 +53,14 @@ char save_W_file[FILENAME_MAX];
 char save_gradsq_file[FILENAME_MAX];
 
 long long W_SIZE = 0;
+int FACTOR = 2;
 
 void initialize_parameters() {
   long long a, b;
   vector_size++; // Temporarily increment to allocate space for bias
 
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  W_SIZE = 8 * vocab_size * (vector_size + 1);
+  W_SIZE = FACTOR * vocab_size * (vector_size + 1);
   a = posix_memalign((void **)&W, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
@@ -69,8 +71,8 @@ void initialize_parameters() {
     fprintf(stderr, "Error allocating memory for gradsq\n");
     exit(1);
   }
-  for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
-  for (b = 0; b < vector_size; b++) for (a = 0; a < 2 * vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
+  for (b = 0; b < vector_size; b++) for (a = 0; a < FACTOR * vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+  for (b = 0; b < vector_size; b++) for (a = 0; a < FACTOR * vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
   vector_size--;
 }
 
