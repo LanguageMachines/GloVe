@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <assert.h>
 #include <pthread.h>
 #include <time.h>
 #include "common.h"
@@ -57,10 +56,10 @@ int FACTOR = 2;
 
 void initialize_parameters() {
   long long a, b;
-  vector_size++; // Temporarily increment to allocate space for bias
+  vector_size += 2; // Temporarily increment to allocate space for bias
 
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  W_SIZE = FACTOR * vocab_size * (vector_size + 1);
+  W_SIZE = FACTOR * vocab_size * (vector_size);
   a = posix_memalign((void **)&W, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
@@ -71,9 +70,13 @@ void initialize_parameters() {
     fprintf(stderr, "Error allocating memory for gradsq\n");
     exit(1);
   }
-  for (b = 0; b < vector_size; b++) for (a = 0; a < FACTOR * vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
-  for (b = 0; b < vector_size; b++) for (a = 0; a < FACTOR * vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
-  vector_size--;
+  for (b = 0; b < vector_size; b++) {
+    for (a = 0; a < FACTOR * vocab_size; a++) {
+      W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+      gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
+    }
+  }
+  vector_size -=2;
 }
 
 inline real check_nan(real update) {
@@ -107,13 +110,9 @@ void *glove_thread(void *vid) {
     if (cr.word1 < 1 || cr.word2 < 1) {
       continue;
     }
-
     /* Get location of words in W & gradsq */
     l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
-    assert( (l1 + vector_size) < W_SIZE );
     l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size + 1); // shift by vocab_size to get separate vectors for context words
-    assert( (l2 + vector_size) < W_SIZE );
-
     /* Calculate cost, save diff for gradients */
     diff = 0;
     for (b = 0; b < vector_size; b++) {
@@ -121,7 +120,6 @@ void *glove_thread(void *vid) {
     }
     diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
     fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
-
     // Check for NaN and inf() in the diffs.
     if ( isnan(diff) || isnan(fdiff) ) {
       fprintf(stderr,"Caught NaN in diff or fdiff for thread. Skipping update\n");
