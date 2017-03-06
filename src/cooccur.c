@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-//#include <assert.h>
 #include "common.h"
 
 int verbose = 2; // 0, 1, or 2
@@ -34,7 +33,9 @@ long long overflow_length; // Number of cooccurrence records whose product excee
 int window_size = 15; // default context window size
 int symmetric = 1; // 0: asymmetric, 1: symmetric
 real memory_limit = 3; // soft limit, in gigabytes, used to estimate optimal array sizes
-char *vocab_file, *file_head;
+
+char vocab_file[FILENAME_MAX];
+char file_head[FILENAME_MAX];
 
 /* Move-to-front hashing and hash function from Hugh Williams, http://www.seg.rmit.edu.au/code/zwh-ipl/ */
 
@@ -300,7 +301,7 @@ int merge_files(int num) {
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
   int flag, fidcounter = 1;
-  long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+  long long a, j = 0, k, no_id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
   char format[20], filename[FILENAME_MAX], str[MAX_STRING_LENGTH + 1];
   FILE *fid = 0, *foverflow;
   real *bigram_table, r;
@@ -333,7 +334,7 @@ int get_cooccurrence() {
     fprintf(stderr,"Unable to open vocab file %s.\n",vocab_file);
     return 1;
   }
-  while (fscanf(fid, format, str, &id) != EOF){
+  while (fscanf(fid, format, str, &no_id) != EOF){
     hashinsert(vocab_hash, str, ++j); // Here id is not used: inserting vocab words into hash table with their frequency rank, j
   }
   fclose(fid);
@@ -411,9 +412,7 @@ int get_cooccurrence() {
 	}
       }
       else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
-	//	assert( w1 < vocab_size );
 	cr[ind].word1 = w1;
-	//	assert( w2 < vocab_size );
 	cr[ind].word2 = w2;
 	cr[ind].val = 1.0/((real)(j-k));
 	ind++; // Keep track of how full temporary buffer is
@@ -489,8 +488,6 @@ int find_arg( const char *str, int argc, char **argv) {
 int main(int argc, char **argv) {
   int i;
   real rlimit, n = 1e5;
-  vocab_file = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
-  file_head = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH);
 
   if (argc == 1) {
     printf("Tool to calculate word-word cooccurrence statistics\n");
