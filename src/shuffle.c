@@ -46,7 +46,9 @@ static long rand_long(long n) {
 /* Write contents of array to binary file */
 int write_chunk(CREC *array, long size, FILE *fout) {
   long i = 0;
-  for (i = 0; i < size; i++) fwrite(&array[i], sizeof(CREC), 1, fout);
+  for (i = 0; i < size; i++) {
+    fwrite(&array[i], sizeof(CREC), 1, fout);
+  }
   return 0;
 }
 
