@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+//#include <assert.h>
 #include <math.h>
 #include "common.h"
 
@@ -71,7 +72,7 @@ HASHREC *hashsearch(HASHREC **ht, char *w) {
 }
 
 /* Insert string in hash table, check for duplicates which should be absent */
-void hashinsert(HASHREC **ht, const char *w, long long id) {
+int hashinsert(HASHREC **ht, const char *w, long long id) {
   HASHREC	*htmp, *hprv;
   unsigned int hval = HASHFN(w, TSIZE, SEED);
   for ( hprv = NULL, htmp = ht[hval]; htmp != NULL && scmp(htmp->word, w) != 0; hprv = htmp, htmp = htmp->next);
@@ -87,11 +88,12 @@ void hashinsert(HASHREC **ht, const char *w, long long id) {
     else {
       hprv->next = htmp;
     }
+    return 1;
   }
   else {
     fprintf(stderr, "Error, duplicate entry located: %s.\n",htmp->word);
+    return 0;
   }
-  return;
 }
 
 /* Read word from input stream */
@@ -306,9 +308,7 @@ int get_cooccurrence() {
   FILE *fid = 0, *foverflow;
   real *bigram_table, r;
   HASHREC *htmp, **vocab_hash = inithashtable();
-  CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + window_size+1));
-  fprintf( stderr, "allocated %lld bytes for cr\n",
-	   sizeof(CREC) * (overflow_length + window_size+1) );
+  CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + window_size));
   history = (long long*)malloc(sizeof(long long) * window_size);
 
   fprintf(stderr, "COUNTING COOCCURRENCES\n");
@@ -325,7 +325,6 @@ int get_cooccurrence() {
     fprintf(stderr, "max product: %lld\n", max_product);
     fprintf(stderr, "overflow length: %lld\n", overflow_length);
   }
-  sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
   if (verbose > 1) {
     fprintf(stderr, "Reading vocab from file \"%s\"...", vocab_file);
   }
@@ -334,9 +333,25 @@ int get_cooccurrence() {
     fprintf(stderr,"Unable to open vocab file %s.\n",vocab_file);
     return 1;
   }
-  while (fscanf(fid, format, str, &no_id) != EOF){
-    hashinsert(vocab_hash, str, ++j); // Here id is not used: inserting vocab words into hash table with their frequency rank, j
-  }
+  sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
+  do {
+    int scan_val = fscanf(fid, format, str, &no_id);
+    // Here id is not used: inserting vocab words into hash table with their frequency rank, j,
+    if ( scan_val == 2 ){
+      ++j; // increment vocabulary counter
+      // skip vocabulary entries that are wrong
+      if ( !hashinsert( vocab_hash, str, j ) ){
+	// counter is decremented when hashinsert() detected a double entry
+	--j;
+      }
+      else if ( verbose > 2 ){
+       	fprintf( stderr, "inserted word[%lld]=%s\n", j, str );
+      }
+    }
+    else if ( !feof(fid) ){
+      fprintf( stderr, "problematic vocabulary entry on line %lld (skipped)\n", j+1 );
+    }
+  } while ( !feof(fid) );
   fclose(fid);
   vocab_size = j;
   j = 0;
@@ -377,7 +392,7 @@ int get_cooccurrence() {
   }
   /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
   while (1) {
-    if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
+    if (ind >= overflow_length - 2 * window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
       qsort(cr, ind, sizeof(CREC), compare_crec);
       write_chunk(cr,ind,foverflow);
       fclose(foverflow);
@@ -453,9 +468,11 @@ int get_cooccurrence() {
     long long y;
     for ( y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
       if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
-	fwrite(&x, sizeof(x), 1, fid);
-	fwrite(&y, sizeof(y), 1, fid);
-	fwrite(&r, sizeof(r), 1, fid);
+	CREC tmp;
+	tmp.word1 = x;
+	tmp.word2 = y;
+	tmp.val =  r;
+	fwrite(&tmp, sizeof(CREC), 1, fid);
       }
     }
   }
