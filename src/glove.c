@@ -21,6 +21,7 @@
 //    GlobalVectors@googlegroups.com
 //    http://nlp.stanford.edu/projects/glove/
 
+#define _XOPEN_SOURCE 600 // needed on older sytems for fseeko stuuf
 
 #include <stdint.h>
 #include <stdio.h>
@@ -282,8 +283,12 @@ int save_params(int nb_iter) {
       fprintf(fout,"\n");
       if (save_gradsq > 0) { // Save gradsq
 	fprintf(fgs, "%s",word);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
-	for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %lf", gradsq[(vocab_size + a) * (vector_size + 1) + b]);
+	for (b = 0; b < (vector_size + 1); b++) {
+	  fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
+	}
+	for (b = 0; b < (vector_size + 1); b++) {
+	  fprintf(fgs," %lf", gradsq[(vocab_size + a) * (vector_size + 1) + b]);
+	}
 	fprintf(fgs,"\n");
       }
       if (fscanf(fid,format,word) == 0) {
