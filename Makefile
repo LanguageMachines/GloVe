@@ -1,6 +1,6 @@
 CC = gcc
 #For older gcc, use -O3 or -O2 instead of -Ofast
-CFLAGS = -lm -pthread -Ofast -march=native -funroll-loops -Wno-unused-result -g -pedantic -W -Wall # -std=c99
+CFLAGS = -lm -pthread -Ofast -march=native -funroll-loops -Wno-unused-result -W -Wall -pedantic -std=c99
 BUILDDIR := build
 SRCDIR := src
 
