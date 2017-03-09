@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 #include <pthread.h>
 #include <time.h>
 #include "common.h"
@@ -45,38 +46,33 @@ int checkpoint_every = 0; // checkpoint the model for every checkpoint_every ite
 real eta = 0.05; // Initial learning rate
 real alpha = 0.75, x_max = 100.0; // Weighting function parameters, not extremely sensitive to corpus, though may need adjustment for very small or very large corpora
 real *W = NULL, *gradsq = NULL, *cost = NULL;
-long long num_lines, *lines_per_thread, vocab_size;
+long long num_lines, *lines_per_thread;
+voc_t vocab_size;
 char vocab_file[FILENAME_MAX];
 char input_file[FILENAME_MAX];
 char save_W_file[FILENAME_MAX];
 char save_gradsq_file[FILENAME_MAX];
 
-long long W_SIZE = 0;
-int FACTOR = 2;
+voc_t w_size;
 
 void initialize_parameters() {
-  long long a, b;
-  vector_size += 2; // Temporarily increment to allocate space for bias
-
+  voc_t a;
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  W_SIZE = FACTOR * vocab_size * (vector_size);
-  a = posix_memalign((void **)&W, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
+  w_size = (2 * vocab_size * (vector_size+2) + vector_size + 1 );
+  a = posix_memalign((void **)&W, 128, w_size * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
     exit(1);
   }
-  a = posix_memalign((void **)&gradsq, 128, W_SIZE * sizeof(real)); // Might perform better than malloc
+  a = posix_memalign((void **)&gradsq, 128, w_size * sizeof(real)); // Might perform better than malloc
   if (gradsq == NULL) {
     fprintf(stderr, "Error allocating memory for gradsq\n");
     exit(1);
   }
-  for (b = 0; b < vector_size; b++) {
-    for (a = 0; a < FACTOR * vocab_size; a++) {
-      W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
-      gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
-    }
+  for ( a = 0; a < w_size; a++) {
+    W[a] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+    gradsq[a] = 1.0; // So initial value of eta is equal to initial learning rate
   }
-  vector_size -=2;
 }
 
 inline real check_nan(real update) {
@@ -90,10 +86,9 @@ inline real check_nan(real update) {
 
 /* Train the GloVe model */
 void *glove_thread(void *vid) {
-  long long a, b ,l1, l2;
   long long id = *(long long*)vid;
   CREC cr;
-  real diff, fdiff, temp1, temp2;
+  real temp1, temp2;
   FILE *fin = fopen(input_file, "rb");
   off_t fpos = (num_lines / num_threads * id) * sizeof(CREC);
   fseeko(fin, fpos, SEEK_SET); //Threads spaced roughly equally throughout file
@@ -101,9 +96,19 @@ void *glove_thread(void *vid) {
 
   real* W_updates1 = (real*)malloc(vector_size * sizeof(real));
   real* W_updates2 = (real*)malloc(vector_size * sizeof(real));
+  long long a;
   for (a = 0; a < lines_per_thread[id]; a++) {
     fread(&cr, sizeof(CREC), 1, fin);
-    //	fprintf( stderr, "read a CREC: %ld %ld (%Lf)\n", cr.word1, cr.word2, cr.val );
+    if ( cr.val == 0. ){
+      fprintf( stderr, "read an invalid CREC: %lld %lld (%lf)\n", cr.word1, cr.word2, cr.val );
+      fprintf( stderr, "INT_MAX = %d\n", INT_MAX );
+      fprintf( stderr, "UINT_MAX = %u\n", UINT_MAX );
+      fprintf( stderr, "LONG_MAX = %ld\n", LONG_MAX );
+      fprintf( stderr, "ULONG_MAX = %lu\n", ULONG_MAX );
+      fprintf( stderr, "LLONG_MAX = %lld\n", LLONG_MAX );
+      fprintf( stderr, "ULLONG_MAX = %llu\n", ULLONG_MAX );
+      abort();
+    }
     if (feof(fin)){
       break;
     }
@@ -111,15 +116,16 @@ void *glove_thread(void *vid) {
       continue;
     }
     /* Get location of words in W & gradsq */
-    l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
-    l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size + 1); // shift by vocab_size to get separate vectors for context words
+    voc_t l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
+    voc_t l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size + 1); // shift by vocab_size to get separate vectors for context words
     /* Calculate cost, save diff for gradients */
-    diff = 0;
+    real diff = 0;
+    int b;
     for (b = 0; b < vector_size; b++) {
       diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
     }
     diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
-    fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
+    real fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
     // Check for NaN and inf() in the diffs.
     if ( isnan(diff) || isnan(fdiff) ) {
       fprintf(stderr,"Caught NaN in diff or fdiff for thread. Skipping update\n");
@@ -178,7 +184,6 @@ int save_params(int nb_iter) {
    *   else        => saving the final paramters, so nb_iter is ignored.
    */
 
-  long long a, b;
   char format[20];
   char output_file[FILENAME_MAX], output_file_gsq[FILENAME_MAX];
   char *word = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
@@ -196,7 +201,8 @@ int save_params(int nb_iter) {
       fprintf(stderr, "Unable to open file %s.\n",save_W_file);
       return 1;
     }
-    for (a = 0; a < W_SIZE; a++) {
+    voc_t a;
+    for (a = 0; a < w_size; a++) {
       fwrite(&W[a], sizeof(real), 1,fout);
     }
     fclose(fout);
@@ -212,7 +218,7 @@ int save_params(int nb_iter) {
 	fprintf(stderr, "Unable to open file %s.\n",save_gradsq_file);
 	return 1;
       }
-      for (a = 0; a < W_SIZE; a++) {
+      for (a = 0; a < w_size; a++) {
 	fwrite(&gradsq[a], sizeof(real), 1,fgs);
       }
       fclose(fgs);
@@ -249,6 +255,7 @@ int save_params(int nb_iter) {
       fprintf(stderr, "Unable to open file %s.\n",vocab_file);
       return 1;
     }
+    voc_t a;
     for (a = 0; a < vocab_size; a++) {
       if (fscanf(fid,format,word) == 0){
 	return 1;
@@ -259,9 +266,11 @@ int save_params(int nb_iter) {
       }
       fprintf(fout, "%s",word);
       if (model == 0) { // Save all parameters (including bias)
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[(vocab_size + a) * (vector_size + 1) + b]);
       }
+      int b;
       if (model == 1) {
 	// Save only "word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
@@ -288,8 +297,9 @@ int save_params(int nb_iter) {
       const char *u_word = "<unk>";
 
       int num_rare_words = vocab_size < 100 ? vocab_size : 100;
-
+      voc_t a;
       for (a = vocab_size - num_rare_words; a < vocab_size; a++) {
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) {
 	  unk_vec[b] += W[a * (vector_size + 1) + b] / num_rare_words;
 	  unk_context[b] += W[(vocab_size + a) * (vector_size + 1) + b] / num_rare_words;
@@ -297,6 +307,7 @@ int save_params(int nb_iter) {
       }
 
       fprintf(fout, "%s",u_word);
+      int b;
       if (model == 0) { // Save all parameters (including bias)
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_vec[b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_context[b]);

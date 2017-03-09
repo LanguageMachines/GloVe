@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "common.h"
 
 static const long LRAND_MAX = ((long) RAND_MAX + 2) * (long)RAND_MAX;
@@ -44,8 +45,8 @@ static long rand_long(long n) {
 }
 
 /* Write contents of array to binary file */
-int write_chunk(CREC *array, long size, FILE *fout) {
-  long i = 0;
+int write_chunk(CREC *array, voc_t size, FILE *fout) {
+  voc_t i = 0;
   for (i = 0; i < size; i++) {
     fwrite(&array[i], sizeof(CREC), 1, fout);
   }
@@ -53,8 +54,8 @@ int write_chunk(CREC *array, long size, FILE *fout) {
 }
 
 /* Fisher-Yates shuffle */
-void shuffle(CREC *array, long n) {
-  long i, j;
+void shuffle(CREC *array, voc_t n) {
+  voc_t i, j;
   CREC tmp;
   for (i = n - 1; i > 0; i--) {
     j = rand_long(i + 1);
@@ -66,7 +67,6 @@ void shuffle(CREC *array, long n) {
 
 /* Merge shuffled temporary files; doesn't necessarily produce a perfect shuffle, but good enough */
 int shuffle_merge(int num) {
-  long i, j, k, l = 0;
   int fidcounter = 0;
   CREC *array;
   char filename[FILENAME_MAX];
@@ -74,6 +74,7 @@ int shuffle_merge(int num) {
 
   array = (CREC*)malloc(sizeof(CREC) * array_size);
   fid = (FILE**)malloc(sizeof(FILE) * num);
+  long l = 0;
   for (fidcounter = 0; fidcounter < num; fidcounter++) { //num = number of temporary files to merge
     sprintf(filename,"%s_%04d.bin",file_head, fidcounter);
     fid[fidcounter] = fopen(filename, "rb");
@@ -86,10 +87,12 @@ int shuffle_merge(int num) {
     fprintf(stderr, "Merging temp files: processed %ld lines.", l);
   }
   while (1) { //Loop until EOF in all files
-    i = 0;
+    int i = 0;
     //Read at most array_size values into array, roughly array_size/num from each temp file
+    int j;
     for (j = 0; j < num; j++) {
       if (feof(fid[j])) continue;
+      long long k;
       for (k = 0; k < array_size / num; k++){
 	fread(&array[i], sizeof(CREC), 1, fid[j]);
 	if (feof(fid[j])) break;

@@ -29,9 +29,9 @@
 #include "common.h"
 
 int verbose = 2; // 0, 1, or 2
-long long max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
-long long overflow_length; // Number of cooccurrence records whose product exceeds max_product to store in memory before writing to disk
-int window_size = 15; // default context window size
+voc_t max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
+voc_t overflow_length; // Number of cooccurrence records whose product exceeds max_product to store in memory before writing to disk
+unsigned int window_size = 15; // default context window size
 int symmetric = 1; // 0: asymmetric, 1: symmetric
 real memory_limit = 3; // soft limit, in gigabytes, used to estimate optimal array sizes
 
@@ -72,7 +72,7 @@ HASHREC *hashsearch(HASHREC **ht, char *w) {
 }
 
 /* Insert string in hash table, check for duplicates which should be absent */
-int hashinsert(HASHREC **ht, const char *w, long long id) {
+int hashinsert(HASHREC **ht, const char *w, voc_t id) {
   HASHREC	*htmp, *hprv;
   unsigned int hval = HASHFN(w, TSIZE, SEED);
   for ( hprv = NULL, htmp = ht[hval]; htmp != NULL && scmp(htmp->word, w) != 0; hprv = htmp, htmp = htmp->next);
@@ -126,12 +126,12 @@ int get_word( char *word, FILE *fin) {
 }
 
 /* Write sorted chunk of cooccurrence records to file, accumulating duplicate entries */
-int write_chunk(CREC *cr, long long length, FILE *fout) {
+int write_chunk(CREC *cr, voc_t length, FILE *fout) {
   if (length == 0) {
     return 0;
   }
 
-  long long a = 0;
+  voc_t a = 0;
   CREC old = cr[a];
 
   for (a = 1; a < length; a++) {
@@ -159,7 +159,7 @@ int compare_crec(const void *a, const void *b) {
 
 /* Check if two cooccurrence records are for the same two words */
 int compare_crecid(CRECID a, CRECID b) {
-  long long c;
+  voc_t c;
   if ( (c = a.word1 - b.word1) != 0) {
     return c;
   }
@@ -236,7 +236,7 @@ int merge_write(CRECID _new, CRECID *old, FILE *fout) {
 /* Merge [num] sorted files of cooccurrence records */
 int merge_files(int num) {
   int i, size;
-  long long counter = 0;
+  long long int counter = 0;
   CRECID *pq, _new, old;
   char filename[200];
   FILE **fid, *fout;
@@ -303,13 +303,13 @@ int merge_files(int num) {
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
   int flag, fidcounter = 1;
-  long long a, j = 0, k, no_id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+  voc_t a, j = 0, k, no_id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
   char format[20], filename[FILENAME_MAX], str[MAX_STRING_LENGTH + 1];
   FILE *fid = 0, *foverflow;
   real *bigram_table, r;
   HASHREC *htmp, **vocab_hash = inithashtable();
   CREC *cr = (CREC*)malloc(sizeof(CREC) * (overflow_length + window_size));
-  history = (long long*)malloc(sizeof(long long) * window_size);
+  history = (voc_t*)malloc(sizeof(voc_t) * window_size);
 
   fprintf(stderr, "COUNTING COOCCURRENCES\n");
   if (verbose > 0) {
@@ -359,7 +359,7 @@ int get_cooccurrence() {
     fprintf(stderr, "loaded %lld words.\nBuilding lookup table...", vocab_size);
   }
   /* Build auxiliary lookup table used to index into bigram_table */
-  lookup = (long long *)calloc( vocab_size + 1, sizeof(long long) );
+  lookup = (voc_t *)calloc( vocab_size + 1, sizeof(voc_t) );
   if (lookup == NULL) {
     fprintf(stderr, "Couldn't allocate memory!");
     return 1;
@@ -457,15 +457,15 @@ int get_cooccurrence() {
   }
   fid = fopen(filename,"w");
   j = 1e6;
-  long long x;
+  voc_t x;
   for ( x = 1; x <= vocab_size; x++) {
     if (verbose > 1){
-      if ( (long long) (0.75*log(vocab_size / x)) < j) {
-	j = (long long) (0.75*log(vocab_size / x));
+      if ( (voc_t) (0.75*log(vocab_size / x)) < j) {
+	j = (voc_t) (0.75*log(vocab_size / x));
 	fprintf(stderr,".");
       } // log's to make it look (sort of) pretty
     }
-    long long y;
+    voc_t y;
     for ( y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
       if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
 	CREC tmp;
@@ -560,8 +560,8 @@ int main(int argc, char **argv) {
   /* Estimate the maximum value that max_product can take so that this limit is still satisfied */
   rlimit = 0.85 * (real)memory_limit * 1073741824/(sizeof(CREC));
   while (fabs(rlimit - n * (log(n) + 0.1544313298)) > 1e-3) n = rlimit / (log(n) + 0.1544313298);
-  max_product = (long long) n;
-  overflow_length = (long long) rlimit/6; // 0.85 + 1/6 ~= 1
+  max_product = (voc_t) n;
+  overflow_length = (voc_t) rlimit/6; // 0.85 + 1/6 ~= 1
 
   /* Override estimates by specifying limits explicitly on the command line */
   if ((i = find_arg("-max-product", argc, argv)) > 0) {

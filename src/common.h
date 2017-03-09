@@ -8,23 +8,24 @@ static const int SEED =	1159241;
 static const int TSIZE = 1048576;
 
 typedef double real;
+typedef long long voc_t; // originally it was long int. but that is to short.
 
 typedef struct cooccur_rec {
-  long long word1;
-  long long word2;
+  voc_t word1;
+  voc_t word2;
   real val;
 } CREC;
 
 typedef struct cooccur_rec_id {
-  long long word1;
-  long long word2;
+  voc_t word1;
+  voc_t word2;
   real val;
-  long long id;
+  voc_t id;
 } CRECID;
 
 typedef struct hashrec {
   char *word;
-  long long id;
+  voc_t id;
   struct hashrec *next;
 } HASHREC;
 
