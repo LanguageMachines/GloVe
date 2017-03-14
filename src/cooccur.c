@@ -303,7 +303,7 @@ int merge_files(int num) {
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
   int flag, fidcounter = 1;
-  voc_t a, j = 0, k, no_id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+  voc_t a, j = 0, k, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
   char format[20], filename[FILENAME_MAX], str[MAX_STRING_LENGTH + 1];
   FILE *fid = 0, *foverflow;
   real *bigram_table, r;
@@ -335,21 +335,27 @@ int get_cooccurrence() {
   }
   sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
   do {
-    int scan_val = fscanf(fid, format, str, &no_id);
+    voc_t dummy;
+    int scan_val = fscanf( fid, format, str, &dummy );
     // Here id is not used: inserting vocab words into hash table with their frequency rank, j,
-    if ( scan_val == 2 ){
+    if ( scan_val == 2 ){ // entry seems ok
       ++j; // increment vocabulary counter
-      // skip vocabulary entries that are wrong
       if ( !hashinsert( vocab_hash, str, j ) ){
 	// counter is decremented when hashinsert() detected a double entry
 	--j;
       }
-      else if ( verbose > 2 ){
+      else if ( verbose > 2 ){ // skip vocabulary entries that are wrong
        	fprintf( stderr, "inserted word[%lld]=%s\n", j, str );
       }
     }
     else if ( !feof(fid) ){
       fprintf( stderr, "problematic vocabulary entry on line %lld (skipped)\n", j+1 );
+      // we skip the rest of the entry
+      char a;
+      while ( (a = fgetc(fid)) ){
+	if ( a == '\n' || a == '\0' )
+	  break;
+      }
     }
   } while ( !feof(fid) );
   fclose(fid);

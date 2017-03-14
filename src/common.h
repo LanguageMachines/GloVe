@@ -8,7 +8,7 @@ static const int SEED =	1159241;
 static const int TSIZE = 1048576;
 
 typedef double real;
-typedef long long voc_t; // originally it was long int. but that is to short.
+typedef long long voc_t; // originally it was int. But that is to short.
 
 typedef struct cooccur_rec {
   voc_t word1;
