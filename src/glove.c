@@ -189,7 +189,7 @@ int save_params(int nb_iter) {
 
   char format[20];
   char output_file[FILENAME_MAX], output_file_gsq[FILENAME_MAX];
-  FILE *fid, *fout, *fgs;
+  FILE *fid, *fout, *fgs=NULL;
 
   if (use_binary > 0) { // Save parameters in binary file
     if (nb_iter <= 0){
@@ -284,7 +284,7 @@ int save_params(int nb_iter) {
 	}
       } while ( !feof(fid) );
       if ( feof(fid) ){
-	return 1;
+	break; // and continue at if (use_unk_vec)
       }
       // input vocab cannot contain special <unk> keyword
       if (strcmp(word, "<unk>") == 0) {
