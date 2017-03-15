@@ -61,7 +61,7 @@ voc_t w_size;
 void initialize_parameters() {
   voc_t a;
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  w_size = (2 * vocab_size * (vector_size+2) + vector_size + 1 );
+  w_size = (2 * vocab_size * (vector_size+1) + vector_size + 1 );
   a = posix_memalign((void **)&W, 128, w_size * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
@@ -73,7 +73,7 @@ void initialize_parameters() {
     exit(1);
   }
   for ( a = 0; a < w_size; a++) {
-    W[a] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+    W[a] = (rand() / (real)RAND_MAX - 0.5) / (vector_size+1);
     gradsq[a] = 1.0; // So initial value of eta is equal to initial learning rate
   }
 }
@@ -267,7 +267,7 @@ int save_params(int nb_iter) {
 	// read valid entries. exact as cooccur does it!
 	if ( scan_val == 2 ){ // entry seems ok
 	  if ( wl.find( word ) != wl.end() ){
-	    // a double entrie
+	    // a double entry
 	    continue;
 	  }
 	  wl.insert(word);
@@ -276,9 +276,9 @@ int save_params(int nb_iter) {
 	}
 	else if ( !feof(fid) ){
 	  // skip rest of offensive line
-	  char a;
-	  while ( (a = fgetc(fid)) ){
-	    if ( a == '\n' || a == '\0' )
+	  char ch;
+	  while ( (ch = fgetc(fid)) ){
+	    if ( ch == '\n' || ch == '\0' )
 	      break;
 	  }
 	}
@@ -299,18 +299,20 @@ int save_params(int nb_iter) {
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[(vocab_size + a) * (vector_size + 1) + b]);
       }
-      int b;
-      if (model == 1) {
+      else if (model == 1) {
+	int b;
 	// Save only "word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
       }
       else if (model == 2) {
+	int b;
 	// Save "word + context word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b] + W[(vocab_size + a) * (vector_size + 1) + b]);
       }
       fprintf(fout,"\n");
       if (save_gradsq > 0) { // Save gradsq
 	fprintf(fgs, "%s",word);
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) {
 	  fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
 	}
@@ -337,16 +339,18 @@ int save_params(int nb_iter) {
       }
 
       fprintf(fout, "%s",u_word);
-      int b;
       if (model == 0) { // Save all parameters (including bias)
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_vec[b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_context[b]);
       }
-      if (model == 1) {
+      else if (model == 1) {
+	int b;
 	// Save only "word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
       }
       else if (model == 2){
+	int b;
 	// Save "word + context word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b] + unk_context[b]);
       }
@@ -568,13 +572,20 @@ int main(int argc, char **argv) {
       return EXIT_FAILURE;
     }
     sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
+    std::set<std::string> wl;
     do {
       voc_t dummy;
       char str[MAX_STRING_LENGTH+1];
       int scan_val = fscanf(fid, format, str, &dummy );
       // read valid entries. exact as cooccur does it!
       if ( scan_val == 2 ){ // entry seems ok
-	++vocab_size; // increment vocabulary counter
+	if ( wl.find(str) == wl.end() ){ // so no double entry
+	  ++vocab_size; // increment vocabulary counter
+	  wl.insert( str );
+	  if ( verbose > 3 ){
+	    fprintf( stderr, "voc[%lld]=%s\n", vocab_size, str );
+	  }
+	}
       }
       else if ( !feof(fid) ){
 	fprintf( stderr, "problematic vocabulary entry on line %lld (skipped)\n", vocab_size+1 );
