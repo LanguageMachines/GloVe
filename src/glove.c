@@ -31,6 +31,8 @@
 #include <limits.h>
 #include <pthread.h>
 #include <time.h>
+#include <string>
+#include <set>
 #include "common.h"
 
 #define _FILE_OFFSET_BITS 64 // make ftello and fseeko use 64 bit pointers
@@ -60,7 +62,7 @@ void initialize_parameters() {
   ++vector_size; // Temporarily increment to allocate space for bias
 
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  w_size = (2 * vocab_size * (vector_size+1) + vector_size );
+  w_size = ((2 * vocab_size * vector_size) + vector_size );
   voc_t a = posix_memalign((void **)&W, 128, w_size * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
@@ -72,9 +74,10 @@ void initialize_parameters() {
     exit(1);
   }
   for ( a = 0; a < w_size; a++) {
-    W[a] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
+    W[a] = (rand() / (real)RAND_MAX - 0.5) / (vector_size+1);
     gradsq[a] = 1.0; // So initial value of eta is equal to initial learning rate
   }
+
   --vector_size; // decrement size back to normal
 }
 
@@ -189,8 +192,7 @@ int save_params(int nb_iter) {
 
   char format[20];
   char output_file[FILENAME_MAX], output_file_gsq[FILENAME_MAX];
-  char *word = (char*)malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
-  FILE *fid, *fout, *fgs;
+  FILE *fid, *fout, *fgs=NULL;
 
   if (use_binary > 0) { // Save parameters in binary file
     if (nb_iter <= 0){
@@ -253,19 +255,46 @@ int save_params(int nb_iter) {
       return 1;
     }
     fid = fopen(vocab_file, "r");
-    sprintf(format,"%%%ds",MAX_STRING_LENGTH);
+    sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
     if (fid == NULL) {
       fprintf(stderr, "Unable to open file %s.\n",vocab_file);
       return 1;
     }
-    voc_t a;
-    for (a = 0; a < vocab_size; a++) {
-      if (fscanf(fid,format,word) == 0){
-	return 1;
+    voc_t a = 0;
+    std::set<std::string> wl;
+    while ( !feof(fid) ){
+      char word[MAX_STRING_LENGTH+1];
+      do {
+	voc_t dummy;
+	int scan_val = fscanf(fid, format, word, &dummy );
+	// read valid entries. exact as cooccur does it!
+	if ( scan_val == 2 ){ // entry seems ok
+	  if ( wl.find( word ) != wl.end() ){
+	    // a double entry
+	    continue;
+	  }
+	  wl.insert(word);
+	  ++a;
+	  break; // a valid voc entry in 'word'
+	}
+	else if ( !feof(fid) ){
+	  // skip rest of offensive line
+	  char ch;
+	  while ( (ch = fgetc(fid)) ){
+	    if ( ch == '\n' || ch == '\0' )
+	      break;
+	  }
+	}
+      } while ( !feof(fid) );
+      if ( feof(fid) ){
+	break; // and continue at if (use_unk_vec)
       }
       // input vocab cannot contain special <unk> keyword
       if (strcmp(word, "<unk>") == 0) {
 	return 1;
+      }
+      if ( verbose > 3 ){
+	fprintf( stderr, "output vector for word[%lld]=%s\n", a, word );
       }
       fprintf(fout, "%s",word);
       if (model == 0) { // Save all parameters (including bias)
@@ -273,18 +302,20 @@ int save_params(int nb_iter) {
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[(vocab_size + a) * (vector_size + 1) + b]);
       }
-      int b;
-      if (model == 1) {
+      else if (model == 1) {
+	int b;
 	// Save only "word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
       }
       else if (model == 2) {
+	int b;
 	// Save "word + context word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b] + W[(vocab_size + a) * (vector_size + 1) + b]);
       }
       fprintf(fout,"\n");
       if (save_gradsq > 0) { // Save gradsq
 	fprintf(fgs, "%s",word);
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) {
 	  fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
 	}
@@ -292,9 +323,6 @@ int save_params(int nb_iter) {
 	  fprintf(fgs," %lf", gradsq[(vocab_size + a) * (vector_size + 1) + b]);
 	}
 	fprintf(fgs,"\n");
-      }
-      if (fscanf(fid,format,word) == 0) {
-	return 1; // Eat irrelevant frequency entry
       }
     }
 
@@ -314,16 +342,18 @@ int save_params(int nb_iter) {
       }
 
       fprintf(fout, "%s",u_word);
-      int b;
       if (model == 0) { // Save all parameters (including bias)
+	int b;
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_vec[b]);
 	for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_context[b]);
       }
-      if (model == 1) {
+      else if (model == 1) {
+	int b;
 	// Save only "word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
       }
       else if (model == 2){
+	int b;
 	// Save "word + context word" vectors (without bias)
 	for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b] + unk_context[b]);
       }
@@ -362,7 +392,7 @@ int train_glove() {
   file_size = ftello(fin);
   num_lines = file_size/(sizeof(CREC)); // Assuming the file isn't corrupt and consists only of CREC's
   fclose(fin);
-  fprintf(stderr,"Read %lld lines.\n", num_lines);
+  fprintf(stderr,"Binary files contains %lld lines.\n", num_lines);
   if (verbose > 1) {
     fprintf(stderr,"Initializing parameters...");
   }
@@ -432,6 +462,7 @@ int main(int argc, char **argv) {
   int i;
   FILE *fid;
   int result = 0;
+  char format[20];
 
   if (argc == 1) {
     printf("GloVe: Global Vectors for Word Representation, v0.2\n");
@@ -543,13 +574,33 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Unable to open vocab file %s.\n",vocab_file);
       return EXIT_FAILURE;
     }
-    while ((i = getc(fid)) != EOF) {
-      if (i == '\n') {
-	vocab_size++; // Count number of entries in vocab_file
+    sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
+    std::set<std::string> wl;
+    do {
+      voc_t dummy;
+      char str[MAX_STRING_LENGTH+1];
+      int scan_val = fscanf(fid, format, str, &dummy );
+      // read valid entries. exact as cooccur does it!
+      if ( scan_val == 2 ){ // entry seems ok
+	if ( wl.find(str) == wl.end() ){ // so no double entry
+	  ++vocab_size; // increment vocabulary counter
+	  wl.insert( str );
+	  if ( verbose > 3 ){
+	    fprintf( stderr, "voc[%lld]=%s\n", vocab_size, str );
+	  }
+	}
       }
-    }
+      else if ( !feof(fid) ){
+	fprintf( stderr, "problematic vocabulary entry on line %lld (skipped)\n", vocab_size+1 );
+	// we skip the rest of the entry
+	char a;
+	while ( (a = fgetc(fid)) ){
+	  if ( a == '\n' || a == '\0' )
+	    break;
+	}
+      }
+    } while ( !feof(fid) );
     fclose(fid);
-
     result = train_glove();
     free(cost);
   }
