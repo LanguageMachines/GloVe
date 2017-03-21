@@ -59,10 +59,11 @@ char save_gradsq_file[FILENAME_MAX];
 voc_t w_size;
 
 void initialize_parameters() {
-  voc_t a;
+  ++vector_size; // Temporarily increment to allocate space for bias
+
   /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-  w_size = (2 * vocab_size * (vector_size+1) + vector_size + 1 );
-  a = posix_memalign((void **)&W, 128, w_size * sizeof(real)); // Might perform better than malloc
+  w_size = ((2 * vocab_size * vector_size) + vector_size );
+  voc_t a = posix_memalign((void **)&W, 128, w_size * sizeof(real)); // Might perform better than malloc
   if (W == NULL) {
     fprintf(stderr, "Error allocating memory for W\n");
     exit(1);
@@ -76,6 +77,7 @@ void initialize_parameters() {
     W[a] = (rand() / (real)RAND_MAX - 0.5) / (vector_size+1);
     gradsq[a] = 1.0; // So initial value of eta is equal to initial learning rate
   }
+  --vector_size;
 }
 
 inline real check_nan(real update) {
